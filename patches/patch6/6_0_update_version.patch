@@ -1,0 +1,30 @@
+Subject: [PATCH] 6_0_update_version
+---
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 25e55b0c543a04990525117c6f8d640043a9547b)
++++ b/pom.xml	(date 1699470779843)
+@@ -28,8 +28,8 @@
+         <ehcache.version>3.10.8</ehcache.version>
+ 
+         <!-- Logging -->
+-        <logback.version>1.2.12</logback.version>
+-        <slf4j.version>1.7.36</slf4j.version>
++        <logback.version>1.4.11</logback.version>
++        <slf4j.version>2.0.9</slf4j.version>
+ 
+         <!--DB-->
+         <postgresql.version>42.6.0</postgresql.version>
+@@ -59,7 +59,7 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-surefire-plugin</artifactId>
+-                <version>2.22.2</version>
++                <version>3.2.2</version>
+                 <configuration>
+                     <argLine>-Dfile.encoding=UTF-8</argLine>
+                 </configuration>

@@ -1,0 +1,53 @@
+Subject: [PATCH] 10_0_fix
+---
+Index: src/main/webapp/resources/js/topjava.users.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.users.js b/src/main/webapp/resources/js/topjava.users.js
+--- a/src/main/webapp/resources/js/topjava.users.js	(revision 181094987453d81fa316d364e56381cbdc7bf6ff)
++++ b/src/main/webapp/resources/js/topjava.users.js	(date 1691495293243)
+@@ -9,7 +9,7 @@
+ }
+ 
+ function enable(chkbox, id) {
+-    var enabled = chkbox.is(":checked");
++    const enabled = chkbox.is(":checked");
+ //  https://stackoverflow.com/a/22213543/548473
+     $.ajax({
+         url: userAjaxUrl + id,
+Index: src/main/webapp/resources/js/topjava.meals.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.meals.js b/src/main/webapp/resources/js/topjava.meals.js
+--- a/src/main/webapp/resources/js/topjava.meals.js	(revision 181094987453d81fa316d364e56381cbdc7bf6ff)
++++ b/src/main/webapp/resources/js/topjava.meals.js	(date 1691495337239)
+@@ -10,7 +10,7 @@
+             data: $("#filter").serialize()
+         }).done(updateTableByData);
+     }
+-}
++};
+ 
+ function clearFilter() {
+     $("#filter")[0].reset();
+Index: src/main/webapp/WEB-INF/jsp/users.jsp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/WEB-INF/jsp/users.jsp b/src/main/webapp/WEB-INF/jsp/users.jsp
+--- a/src/main/webapp/WEB-INF/jsp/users.jsp	(revision 181094987453d81fa316d364e56381cbdc7bf6ff)
++++ b/src/main/webapp/WEB-INF/jsp/users.jsp	(date 1691495293250)
+@@ -83,7 +83,7 @@
+     i18n["addTitle"] = '<spring:message code="user.add"/>';
+     i18n["editTitle"] = '<spring:message code="user.edit"/>';
+ 
+-    <c:forEach var="key" items='<%=new String[]{"common.deleted","common.saved","common.enabled","common.disabled","common.errorStatus","common.confirm"}%>'>
++    <c:forEach var="key" items='${["common.deleted","common.saved","common.enabled","common.disabled","common.errorStatus","common.confirm"]}'>
+     i18n["${key}"] = "<spring:message code="${key}"/>";
+     </c:forEach>
+ </script>

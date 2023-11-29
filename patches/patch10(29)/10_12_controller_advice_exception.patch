@@ -1,0 +1,261 @@
+Subject: [PATCH] 10_12_controller_advice_exception
+---
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(revision 96dd15b6206960b3d92ea875b92a14503a885efe)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1681338883665)
+@@ -39,6 +39,7 @@
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+     public ResponseEntity<String> createOrUpdate(@Valid UserTo userTo, BindingResult result) {
+         if (result.hasErrors()) {
++            // TODO change to exception handler
+             return ValidationUtil.getErrorResponse(result);
+         }
+         if (userTo.isNew()) {
+Index: src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java
+--- a/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(revision 96dd15b6206960b3d92ea875b92a14503a885efe)
++++ b/src/main/java/ru/javawebinar/topjava/util/ValidationUtil.java	(date 1681338883656)
+@@ -6,6 +6,7 @@
+ import org.springframework.lang.NonNull;
+ import org.springframework.validation.BindingResult;
+ import ru.javawebinar.topjava.HasId;
++import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
+ import ru.javawebinar.topjava.util.exception.NotFoundException;
+ 
+ import javax.validation.*;
+@@ -56,7 +57,7 @@
+ 
+     public static void checkNew(HasId bean) {
+         if (!bean.isNew()) {
+-            throw new IllegalArgumentException(bean + " must be new (id=null)");
++            throw new IllegalRequestDataException(bean + " must be new (id=null)");
+         }
+     }
+ 
+@@ -65,7 +66,7 @@
+         if (bean.isNew()) {
+             bean.setId(id);
+         } else if (bean.id() != id) {
+-            throw new IllegalArgumentException(bean + " must be with id=" + id);
++            throw new IllegalRequestDataException(bean + " must be with id=" + id);
+         }
+     }
+ 
+Index: src/main/java/ru/javawebinar/topjava/util/exception/NotFoundException.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/exception/NotFoundException.java b/src/main/java/ru/javawebinar/topjava/util/exception/NotFoundException.java
+--- a/src/main/java/ru/javawebinar/topjava/util/exception/NotFoundException.java	(revision 96dd15b6206960b3d92ea875b92a14503a885efe)
++++ b/src/main/java/ru/javawebinar/topjava/util/exception/NotFoundException.java	(date 1681338883651)
+@@ -1,10 +1,5 @@
+ package ru.javawebinar.topjava.util.exception;
+ 
+-import org.springframework.http.HttpStatus;
+-import org.springframework.web.bind.annotation.ResponseStatus;
+-
+-//  http://stackoverflow.com/a/22358422/548473
+-@ResponseStatus(value = HttpStatus.UNPROCESSABLE_ENTITY, reason = "No data found")  // 422
+ public class NotFoundException extends RuntimeException {
+     public NotFoundException(String message) {
+         super(message);
+Index: src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java
+new file mode 100644
+--- /dev/null	(date 1681339225887)
++++ b/src/main/java/ru/javawebinar/topjava/web/ExceptionInfoHandler.java	(date 1681339225887)
+@@ -0,0 +1,65 @@
++package ru.javawebinar.topjava.web;
++
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.core.Ordered;
++import org.springframework.core.annotation.Order;
++import org.springframework.dao.DataIntegrityViolationException;
++import org.springframework.http.HttpStatus;
++import org.springframework.http.converter.HttpMessageNotReadableException;
++import org.springframework.web.bind.annotation.ExceptionHandler;
++import org.springframework.web.bind.annotation.ResponseStatus;
++import org.springframework.web.bind.annotation.RestController;
++import org.springframework.web.bind.annotation.RestControllerAdvice;
++import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
++import ru.javawebinar.topjava.util.ValidationUtil;
++import ru.javawebinar.topjava.util.exception.ErrorInfo;
++import ru.javawebinar.topjava.util.exception.ErrorType;
++import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
++import ru.javawebinar.topjava.util.exception.NotFoundException;
++
++import javax.servlet.http.HttpServletRequest;
++
++import static ru.javawebinar.topjava.util.exception.ErrorType.*;
++
++@RestControllerAdvice(annotations = RestController.class)
++@Order(Ordered.HIGHEST_PRECEDENCE + 5)
++public class ExceptionInfoHandler {
++    private static final Logger log = LoggerFactory.getLogger(ExceptionInfoHandler.class);
++
++    //  http://stackoverflow.com/a/22358422/548473
++    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
++    @ExceptionHandler(NotFoundException.class)
++    public ErrorInfo notFoundError(HttpServletRequest req, NotFoundException e) {
++        return logAndGetErrorInfo(req, e, false, DATA_NOT_FOUND);
++    }
++
++    @ResponseStatus(HttpStatus.CONFLICT)  // 409
++    @ExceptionHandler(DataIntegrityViolationException.class)
++    public ErrorInfo conflict(HttpServletRequest req, DataIntegrityViolationException e) {
++        return logAndGetErrorInfo(req, e, true, DATA_ERROR);
++    }
++
++    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)  // 422
++    @ExceptionHandler({IllegalRequestDataException.class, MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class})
++    public ErrorInfo validationError(HttpServletRequest req, Exception e) {
++        return logAndGetErrorInfo(req, e, false, VALIDATION_ERROR);
++    }
++
++    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
++    @ExceptionHandler(Exception.class)
++    public ErrorInfo internalError(HttpServletRequest req, Exception e) {
++        return logAndGetErrorInfo(req, e, true, APP_ERROR);
++    }
++
++    //    https://stackoverflow.com/questions/538870/should-private-helper-methods-be-static-if-they-can-be-static
++    private static ErrorInfo logAndGetErrorInfo(HttpServletRequest req, Exception e, boolean logException, ErrorType errorType) {
++        Throwable rootCause = ValidationUtil.getRootCause(e);
++        if (logException) {
++            log.error(errorType + " at request " + req.getRequestURL(), rootCause);
++        } else {
++            log.warn("{} at request  {}: {}", errorType, req.getRequestURL(), rootCause.toString());
++        }
++        return new ErrorInfo(req.getRequestURL(), errorType, rootCause.toString());
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/util/exception/IllegalRequestDataException.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/exception/IllegalRequestDataException.java b/src/main/java/ru/javawebinar/topjava/util/exception/IllegalRequestDataException.java
+new file mode 100644
+--- /dev/null	(date 1681338883647)
++++ b/src/main/java/ru/javawebinar/topjava/util/exception/IllegalRequestDataException.java	(date 1681338883647)
+@@ -0,0 +1,7 @@
++package ru.javawebinar.topjava.util.exception;
++
++public class IllegalRequestDataException extends RuntimeException {
++    public IllegalRequestDataException(String msg) {
++        super(msg);
++    }
++}
+\ No newline at end of file
+Index: src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(revision 96dd15b6206960b3d92ea875b92a14503a885efe)
++++ b/src/main/java/ru/javawebinar/topjava/web/meal/MealUIController.java	(date 1681338883660)
+@@ -42,6 +42,7 @@
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+     public ResponseEntity<String> createOrUpdate(@Valid Meal meal, BindingResult result) {
+         if (result.hasErrors()) {
++            // TODO change to exception handler
+             return ValidationUtil.getErrorResponse(result);
+         }
+         if (meal.isNew()) {
+Index: src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java b/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java
+new file mode 100644
+--- /dev/null	(date 1681338883643)
++++ b/src/main/java/ru/javawebinar/topjava/util/exception/ErrorType.java	(date 1681338883643)
+@@ -0,0 +1,8 @@
++package ru.javawebinar.topjava.util.exception;
++
++public enum ErrorType {
++    APP_ERROR,
++    DATA_NOT_FOUND,
++    DATA_ERROR,
++    VALIDATION_ERROR
++}
+Index: src/main/java/ru/javawebinar/topjava/util/exception/ErrorInfo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/util/exception/ErrorInfo.java b/src/main/java/ru/javawebinar/topjava/util/exception/ErrorInfo.java
+new file mode 100644
+--- /dev/null	(date 1681338883640)
++++ b/src/main/java/ru/javawebinar/topjava/util/exception/ErrorInfo.java	(date 1681338883640)
+@@ -0,0 +1,13 @@
++package ru.javawebinar.topjava.util.exception;
++
++public class ErrorInfo {
++    private final String url;
++    private final ErrorType type;
++    private final String detail;
++
++    public ErrorInfo(CharSequence url, ErrorType type, String detail) {
++        this.url = url.toString();
++        this.type = type;
++        this.detail = detail;
++    }
++}
+\ No newline at end of file
+Index: config/curl.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/config/curl.md b/config/curl.md
+--- a/config/curl.md	(revision 96dd15b6206960b3d92ea875b92a14503a885efe)
++++ b/config/curl.md	(date 1681338883636)
+@@ -32,4 +32,7 @@
+ `curl -s -X POST -d '{"dateTime":"2020-02-01T12:00","description":"Created lunch","calories":300}' -H 'Content-Type:application/json;charset=UTF-8' http://localhost:8080/topjava/rest/profile/meals --user user@yandex.ru:password`
+ 
+ #### update Meals
+-`curl -s -X PUT -d '{"dateTime":"2020-01-30T07:00", "description":"Updated breakfast", "calories":200}' -H 'Content-Type: application/json' http://localhost:8080/topjava/rest/profile/meals/100003 --user user@yandex.ru:password`
+\ No newline at end of file
++`curl -s -X PUT -d '{"dateTime":"2020-01-30T07:00", "description":"Updated breakfast", "calories":200}' -H 'Content-Type: application/json' http://localhost:8080/topjava/rest/profile/meals/100003 --user user@yandex.ru:password`
++
++#### validate with Error
++`curl -s -X POST -d '{}' -H 'Content-Type: application/json' http://localhost:8080/topjava/rest/admin/users --user admin@gmail.com:admin`
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.common.js b/src/main/webapp/resources/js/topjava.common.js
+--- a/src/main/webapp/resources/js/topjava.common.js	(revision 96dd15b6206960b3d92ea875b92a14503a885efe)
++++ b/src/main/webapp/resources/js/topjava.common.js	(date 1681339206833)
+@@ -101,8 +101,10 @@
+ 
+ function failNoty(jqXHR) {
+     closeNoty();
++    var errorInfo = jqXHR.responseJSON;
+     failedNote = new Noty({
+-        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;" + i18n["common.errorStatus"] + ": " + jqXHR.status + (jqXHR.responseJSON ? "<br>" + jqXHR.responseJSON : ""),
++        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;" + i18n["common.errorStatus"] + ": " + jqXHR.status +
++            "<br>" + errorInfo.type + "<br>" + errorInfo.detail,
+         type: "error",
+         layout: "bottomRight"
+     });

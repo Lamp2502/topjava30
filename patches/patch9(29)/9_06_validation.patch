@@ -1,0 +1,93 @@
+Index: src/main/webapp/resources/js/topjava.common.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/webapp/resources/js/topjava.common.js b/src/main/webapp/resources/js/topjava.common.js
+--- a/src/main/webapp/resources/js/topjava.common.js	(revision 2748e5aab6de3c2c4ecf522acd62b27029d3d50f)
++++ b/src/main/webapp/resources/js/topjava.common.js	(date 1606962114921)
+@@ -75,7 +75,7 @@
+ function failNoty(jqXHR) {
+     closeNoty();
+     failedNote = new Noty({
+-        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;Error status: " + jqXHR.status,
++        text: "<span class='fa fa-lg fa-exclamation-circle'></span> &nbsp;Error status: " + jqXHR.status + (jqXHR.responseJSON ? "<br>" + jqXHR.responseJSON : ""),
+         type: "error",
+         layout: "bottomRight"
+     }).show();
+Index: src/main/java/ru/javawebinar/topjava/to/UserTo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/to/UserTo.java b/src/main/java/ru/javawebinar/topjava/to/UserTo.java
+--- a/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(revision 2748e5aab6de3c2c4ecf522acd62b27029d3d50f)
++++ b/src/main/java/ru/javawebinar/topjava/to/UserTo.java	(date 1606962076647)
+@@ -1,11 +1,22 @@
+ package ru.javawebinar.topjava.to;
+ 
++import javax.validation.constraints.Email;
++import javax.validation.constraints.NotBlank;
++import javax.validation.constraints.Size;
++
+ public class UserTo extends BaseTo {
+ 
++    @NotBlank
++    @Size(min = 2, max = 100)
+     private String name;
+ 
++    @Email
++    @NotBlank
++    @Size(max = 100)
+     private String email;
+ 
++    @NotBlank
++    @Size(min = 5, max = 32, message = "length must be between 5 and 32 characters")
+     private String password;
+ 
+     public UserTo() {
+Index: src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java
+--- a/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(revision 2748e5aab6de3c2c4ecf522acd62b27029d3d50f)
++++ b/src/main/java/ru/javawebinar/topjava/web/user/AdminUIController.java	(date 1606962114909)
+@@ -2,11 +2,15 @@
+ 
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
++import org.springframework.http.ResponseEntity;
++import org.springframework.validation.BindingResult;
+ import org.springframework.web.bind.annotation.*;
+ import ru.javawebinar.topjava.model.User;
+ import ru.javawebinar.topjava.to.UserTo;
+ 
++import javax.validation.Valid;
+ import java.util.List;
++import java.util.stream.Collectors;
+ 
+ @RestController
+ @RequestMapping(value = "/admin/users", produces = MediaType.APPLICATION_JSON_VALUE)
+@@ -33,12 +37,19 @@
+ 
+     @PostMapping
+     @ResponseStatus(HttpStatus.NO_CONTENT)
+-    public void createOrUpdate(UserTo userTo) {
++    public ResponseEntity<String> createOrUpdate(@Valid UserTo userTo, BindingResult result) {
++        if (result.hasErrors()) {
++            String errorFieldsMsg = result.getFieldErrors().stream()
++                    .map(fe -> String.format("[%s] %s", fe.getField(), fe.getDefaultMessage()))
++                    .collect(Collectors.joining("<br>"));
++            return ResponseEntity.unprocessableEntity().body(errorFieldsMsg);
++        }
+         if (userTo.isNew()) {
+             super.create(userTo);
+         } else {
+             super.update(userTo, userTo.id());
+         }
++        return ResponseEntity.ok().build();
+     }
+ 
+     @Override

@@ -1,0 +1,47 @@
+Index: src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(revision e94f5792059094bb3b2b21a8f4da9e313807b38b)
++++ src/main/java/ru/javawebinar/topjava/model/AbstractBaseEntity.java	(revision 1a829ecb6f31326d74799b6a79e751ae33735c14)
+@@ -1,5 +1,6 @@
+ package ru.javawebinar.topjava.model;
+ 
++import org.hibernate.Hibernate;
+ import org.springframework.util.Assert;
+ 
+ import javax.persistence.*;
+@@ -13,6 +14,8 @@
+     @Id
+     @SequenceGenerator(name = "global_seq", sequenceName = "global_seq", allocationSize = 1, initialValue = START_SEQ)
+     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "global_seq")
++//  See https://hibernate.atlassian.net/browse/HHH-3718 and https://hibernate.atlassian.net/browse/HHH-12034
++//  Proxy initialization when accessing its identifier managed now by JPA_PROXY_COMPLIANCE setting
+     protected Integer id;
+ 
+     protected AbstractBaseEntity() {
+@@ -50,7 +53,7 @@
+         if (this == o) {
+             return true;
+         }
+-        if (o == null || getClass() != o.getClass()) {
++        if (o == null || !getClass().equals(Hibernate.getClass(o))) {
+             return false;
+         }
+         AbstractBaseEntity that = (AbstractBaseEntity) o;
+Index: src/main/resources/spring/spring-db.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/resources/spring/spring-db.xml	(revision e94f5792059094bb3b2b21a8f4da9e313807b38b)
++++ src/main/resources/spring/spring-db.xml	(revision 1a829ecb6f31326d74799b6a79e751ae33735c14)
+@@ -48,6 +48,7 @@
+             <map>
+                 <entry key="#{T(org.hibernate.cfg.AvailableSettings).FORMAT_SQL}" value="${hibernate.format_sql}"/>
+                 <entry key="#{T(org.hibernate.cfg.AvailableSettings).USE_SQL_COMMENTS}" value="${hibernate.use_sql_comments}"/>
++                <entry key="#{T(org.hibernate.cfg.AvailableSettings).JPA_PROXY_COMPLIANCE}" value="false"/>
+                 <!--<entry key="#{T(org.hibernate.cfg.AvailableSettings).HBM2DDL_AUTO}" value="${hibernate.hbm2ddl.auto}"/>-->
+             </map>
+         </property>
